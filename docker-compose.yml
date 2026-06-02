@@ -1,25 +1,27 @@
 version: "3.9"
 
 services:
-  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  # ── PostgreSQL Database ────────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: career_accelerator
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-career_accelerator}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
 
-  # ── FastAPI backend ──────────────────────────────────────────────────────────
+  # ── FastAPI Backend ────────────────────────────────────────────────────────────
   api:
     build:
       context: .
@@ -29,17 +31,23 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://postgres:password@db:5432/career_accelerator
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:password@db:5432/career_accelerator}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      APP_ENV: development
-      LOG_LEVEL: INFO
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8501,http://streamlit:8501}
     ports:
       - "8000:8000"
     volumes:
       - .:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - app-network
 
-  # ── Streamlit frontend ───────────────────────────────────────────────────────
+  # ── Streamlit Frontend ─────────────────────────────────────────────────────────
   streamlit:
     build:
       context: .
@@ -48,12 +56,19 @@ services:
     depends_on:
       - api
     environment:
-      API_BASE_URL: http://api:8000
+      API_BASE_URL: ${API_BASE_URL:-http://api:8000}
     ports:
       - "8501:8501"
     volumes:
       - .:/app
     command: streamlit run streamlit_app/app.py --server.port 8501 --server.address 0.0.0.0
+    networks:
+      - app-network
 
 volumes:
   postgres_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
