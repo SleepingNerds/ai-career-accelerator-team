@@ -10,8 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-
-from app.api.routes import health, resume, auth, candidates, jobs, companies, resume_versions
+from app.api.routes import health, resume, auth, candidates, jobs, companies, resume_versions, notifications, search, admin
 from app.core.config import get_settings
 from app.core.exceptions import (
     CareerAcceleratorError,
@@ -95,6 +94,11 @@ def create_app() -> FastAPI:
     app.include_router(jobs.router)
     app.include_router(companies.router)
     app.include_router(resume_versions.router)
+    app.include_router(notifications.router)
+    app.include_router(search.router)
+    app.include_router(admin.router)
+    app.include_router(analytics.router)
+    
 
     return app
 
